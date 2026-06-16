@@ -27,21 +27,21 @@ git clone https://github.com/goraxyy/whatsapp-sender.git
 cd whatsapp-sender
 ```
 
-### 2. Install dependency
+### 2. Install dependencies
 
 ```bash
-pip3 install pywhatkit --no-deps
+pip3 install pywhatkit
 ```
 
-### 3. (Optional) Fix `python` command on macOS
+> **Note:** use `pip3`, not `pip` — macOS does not have a `pip` binary by default.
 
-macOS ships without a `python` binary — only `python3`. Add a permanent alias:
+### 3. Fix the `python` command on macOS (one-time)
+
+macOS ships with `python3` only, not `python`. Add a permanent alias:
 
 ```bash
 echo "alias python=python3" >> ~/.zshrc && source ~/.zshrc
 ```
-
-After this, you can use `python` instead of `python3` in all commands below.
 
 ---
 
@@ -57,25 +57,34 @@ Outputs a timestamped log to `logs/run_YYYYMMDD_HHMMSS.log`. Nothing is sent.
 
 ---
 
-### Full flow — parking scraper → dry-run
+### Full flow — generate from parking scraper → dry-run
 
-> Run from the folder that contains `parking_data.csv`, or pass the full path.
+The scraper writes output only to Google Sheets, not a local file. Use this script to also save a local CSV:
 
 ```bash
-# Step 1: find your parking CSV if unsure where it is
-find ~ -name "parking_data.csv" 2>/dev/null
+cd ~/almaty-parking-scraper && python3 - << 'EOF'
+import csv
+from config import cfg
+from dgis_client import DGisClient
+from transformer import transform
+from deduplicator import deduplicate
 
-# Step 2: convert parking data → contacts.csv
-python3 /path/to/whatsapp-sender/generate_contacts.py /path/to/parking_data.csv --out contacts.csv
-
-# Step 3: dry-run over all contacts
-python3 /path/to/whatsapp-sender/sender.py contacts.csv --mode dry-run
+client = DGisClient()
+raw = client.collect_all()
+records = deduplicate([transform(i) for i in raw])
+records = [r for r in records if r.get("название") != "н/д" or r.get("адрес") != "н/д"]
+with open("parking_data.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.DictWriter(f, fieldnames=records[0].keys())
+    w.writeheader()
+    w.writerows(records)
+print(f"Saved {len(records)} rows to parking_data.csv")
+EOF
 ```
 
-Or if you copy `parking_data.csv` into the project folder:
+Then convert and run:
 
 ```bash
-cp /path/to/parking_data.csv ~/whatsapp-sender/
+cp ~/almaty-parking-scraper/parking_data.csv ~/whatsapp-sender/
 cd ~/whatsapp-sender
 python3 generate_contacts.py parking_data.csv --out contacts.csv
 python3 sender.py contacts.csv --mode dry-run
@@ -83,10 +92,19 @@ python3 sender.py contacts.csv --mode dry-run
 
 ---
 
-### Live mode (sends ≤2 messages to your own number)
+### Live mode (≤2 messages to your own number)
+
+First create a file with your real number in the first rows:
 
 ```bash
-python3 sender.py contacts.csv --mode live
+head -1 contacts.csv > contacts_live.csv
+sed -n '2,3p' contacts.csv | sed 's/+77000000000/+YOUR_REAL_NUMBER/g' >> contacts_live.csv
+```
+
+Then send:
+
+```bash
+python3 sender.py contacts_live.csv --mode live
 ```
 
 WhatsApp Web opens in your browser (~2 min delay). **You must be logged in to WhatsApp Web.**
