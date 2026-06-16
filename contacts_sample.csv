@@ -1,0 +1,5 @@
+phone,message
++77771234567,Test: hello from Almaty parking data!
++77770000000,Hello! This is a test message.
++invalid-num,This message should be skipped.
++77779999999,
