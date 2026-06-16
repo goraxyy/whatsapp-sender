@@ -18,15 +18,78 @@ For use with the [Almaty Parking Scraper](https://github.com/goraxyy/almaty-park
 
 ---
 
-## Installation
+## Setup (one-time)
+
+### 1. Clone the repo
 
 ```bash
 git clone https://github.com/goraxyy/whatsapp-sender.git
 cd whatsapp-sender
-pip install -r requirements.txt
 ```
 
-**Dependency:** `pywhatkit` — opens WhatsApp Web via browser automation. No API keys needed.
+### 2. Install dependency
+
+```bash
+pip3 install pywhatkit --no-deps
+```
+
+### 3. (Optional) Fix `python` command on macOS
+
+macOS ships without a `python` binary — only `python3`. Add a permanent alias:
+
+```bash
+echo "alias python=python3" >> ~/.zshrc && source ~/.zshrc
+```
+
+After this, you can use `python` instead of `python3` in all commands below.
+
+---
+
+## Usage
+
+### Quick test — dry-run on sample data
+
+```bash
+python3 sender.py contacts_sample.csv
+```
+
+Outputs a timestamped log to `logs/run_YYYYMMDD_HHMMSS.log`. Nothing is sent.
+
+---
+
+### Full flow — parking scraper → dry-run
+
+> Run from the folder that contains `parking_data.csv`, or pass the full path.
+
+```bash
+# Step 1: find your parking CSV if unsure where it is
+find ~ -name "parking_data.csv" 2>/dev/null
+
+# Step 2: convert parking data → contacts.csv
+python3 /path/to/whatsapp-sender/generate_contacts.py /path/to/parking_data.csv --out contacts.csv
+
+# Step 3: dry-run over all contacts
+python3 /path/to/whatsapp-sender/sender.py contacts.csv --mode dry-run
+```
+
+Or if you copy `parking_data.csv` into the project folder:
+
+```bash
+cp /path/to/parking_data.csv ~/whatsapp-sender/
+cd ~/whatsapp-sender
+python3 generate_contacts.py parking_data.csv --out contacts.csv
+python3 sender.py contacts.csv --mode dry-run
+```
+
+---
+
+### Live mode (sends ≤2 messages to your own number)
+
+```bash
+python3 sender.py contacts.csv --mode live
+```
+
+WhatsApp Web opens in your browser (~2 min delay). **You must be logged in to WhatsApp Web.**
 
 ---
 
@@ -42,36 +105,6 @@ CSV or TSV file with two required columns:
 - **phone:** E.164 format (`+` + country code + number, 7–15 digits). Spaces/dashes stripped automatically.
 - **message:** plain text. Multi-line supported.
 - Invalid numbers and empty messages are **skipped with a warning** — the program never crashes on bad data.
-
----
-
-## Commands
-
-### Dry-run (default — safe, nothing is sent)
-
-```bash
-python sender.py contacts_sample.csv
-# or explicitly:
-python sender.py contacts_sample.csv --mode dry-run
-```
-
-Outputs a timestamped log to `logs/run_YYYYMMDD_HHMMSS.log`.
-
-### Live mode (sends ≤2 messages to your own number)
-
-```bash
-python sender.py my_contacts.csv --mode live
-```
-
-WhatsApp Web opens in your browser (~2 min delay). **You must be logged in to WhatsApp Web.**
-
-### Convert parking scraper output → contacts
-
-```bash
-# After running almaty-parking-scraper to get parking_data.csv:
-python generate_contacts.py parking_data.csv --out contacts.csv
-python sender.py contacts.csv --mode dry-run
-```
 
 ---
 
